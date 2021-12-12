@@ -199,8 +199,10 @@ dependencies = [
 name = "mux1"
 version = "0.1.0"
 dependencies = [
+ "ff",
  "halo2",
  "pasta_curves",
+ "rand",
 ]
 
 [[package]]

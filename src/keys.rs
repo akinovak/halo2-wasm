@@ -11,7 +11,7 @@ use pasta_curves::{
 use crate::circuit::{MuxCircuit};
 
 // size of circuit
-const K: u32 = 3;
+pub const K: u32 = 4;
 
 #[derive(Debug)]
 pub struct VerifyingKey {

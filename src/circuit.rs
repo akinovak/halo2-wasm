@@ -27,9 +27,9 @@ pub struct Config<F> {
 
 #[derive(Debug, Default)]
 pub struct MuxCircuit<F> {
-    a: Option<F>,
-    b: Option<F>,
-    selector: Option<F>
+    pub a: Option<F>,
+    pub b: Option<F>,
+    pub selector: Option<F>
 }
 
 impl<F: FieldExt> UtilitiesInstructions<F> for MuxCircuit<F> {
@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn full_test() {
         let k = 4;
-
+    
         let a = Fp::from(3);
         let b = Fp::from(2);
         let selector = Fp::from(0);
