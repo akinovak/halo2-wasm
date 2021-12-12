@@ -200,6 +200,7 @@ name = "mux1"
 version = "0.1.0"
 dependencies = [
  "halo2",
+ "pasta_curves",
 ]
 
 [[package]]
