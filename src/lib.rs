@@ -5,3 +5,4 @@ pub mod utils;
 pub mod gadget;
 pub mod circuit;
 pub mod proof;
+pub mod keys;

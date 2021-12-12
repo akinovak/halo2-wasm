@@ -1,51 +1,83 @@
 use halo2::{
-    poly::commitment::Params as params,
     plonk,
-    pasta
+    plonk::{Error},
+    pasta,
+    transcript::{Blake2bRead, Blake2bWrite},
 };
 
 use pasta_curves::{
     vesta
 };
 
-use crate::circuit::{MuxCircuit};
 
-// size of circuit
-const K: u32 = 3;
+use crate::{
+    keys::{ProvingKey, VerifyingKey},
+    circuit::{MuxCircuit, MUX_OUTPUT},
+};
 
-#[derive(Debug)]
-pub struct VerifyingKey {
-    params: halo2::poly::commitment::Params<vesta::Affine>,
-    vk: plonk::VerifyingKey<vesta::Affine>,
-}
+#[derive(Debug, Clone)]
+pub struct Proof(Vec<u8>);
 
-#[derive(Debug)]
-pub struct ProvingKey {
-    params: params<vesta::Affine>,
-    pk: plonk::ProvingKey<vesta::Affine>,
-}
-
-impl VerifyingKey {
-    /// Builds the verifying key.
-    pub fn build() -> Self {
-        let params = halo2::poly::commitment::Params::new(K);
-        let circuit: MuxCircuit<pasta::Fp> = Default::default();
-
-        let vk = plonk::keygen_vk(&params, &circuit).unwrap();
-
-        VerifyingKey { params, vk }
+impl AsRef<[u8]> for Proof {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
     }
 }
 
-impl ProvingKey {
-    /// Builds the proving key.
-    pub fn build() -> Self {
-        let params = halo2::poly::commitment::Params::new(K);
-        let circuit: MuxCircuit<pasta::Fp> = Default::default();
+pub struct Instance {
+    pub result: vesta::Scalar, 
+}
 
-        let vk = plonk::keygen_vk(&params, &circuit).unwrap();
-        let pk = plonk::keygen_pk(&params, vk, &circuit).unwrap();
+impl Instance {
+    fn to_halo2_instance(&self) -> [[vesta::Scalar; 1]; 1] {
+        let mut instance = [vesta::Scalar::zero(); 1];
 
-        ProvingKey { params, pk }
+        instance[MUX_OUTPUT] = self.result;
+        [instance]
+    }
+}
+
+impl Proof {
+    /// Creates a proof for the given circuit and instances.
+    pub fn create(
+        pk: &ProvingKey,
+        circuits: &[MuxCircuit<pasta::Fp>],
+        instances: &[Instance],
+    ) -> Result<Self, Error> {
+        let instances: Vec<_> = instances.iter().map(|i| i.to_halo2_instance()).collect();
+        let instances: Vec<Vec<_>> = instances
+            .iter()
+            .map(|i| i.iter().map(|c| &c[..]).collect())
+            .collect();
+        let public_inputs: Vec<_> = instances.iter().map(|i| &i[..]).collect();
+
+        let mut transcript = Blake2bWrite::<_, vesta::Affine, _>::init(vec![]);
+        plonk::create_proof(&pk.params, &pk.pk, &circuits, &public_inputs, &mut transcript)?;
+        Ok(Proof(transcript.finalize()))
+    }
+
+    /// Verifies this proof with the given instances.
+    pub fn verify(&self, vk: &VerifyingKey, instances: &[Instance]) -> Result<(), plonk::Error> {
+        let instances: Vec<_> = instances.iter().map(|i| i.to_halo2_instance()).collect();
+        let instances: Vec<Vec<_>> = instances
+            .iter()
+            .map(|i| i.iter().map(|c| &c[..]).collect())
+            .collect();
+        let instances: Vec<_> = instances.iter().map(|i| &i[..]).collect();
+
+        let msm = vk.params.empty_msm();
+        let mut transcript = Blake2bRead::init(&self.0[..]);
+        let guard = plonk::verify_proof(&vk.params, &vk.vk, msm, &instances, &mut transcript)?;
+        let msm = guard.clone().use_challenges();
+        if msm.eval() {
+            Ok(())
+        } else {
+            Err(plonk::Error::ConstraintSystemFailure)
+        }
+    }
+
+    /// Constructs a new Proof value.
+    pub fn new(bytes: Vec<u8>) -> Self {
+        Proof(bytes)
     }
 }

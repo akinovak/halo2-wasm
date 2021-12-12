@@ -14,7 +14,7 @@ use crate:: {
 };
 
 // Absolute offsets for public inputs.
-const MUX_OUTPUT: usize = 0;
+pub const MUX_OUTPUT: usize = 0;
 
 #[derive(Clone, Debug)]
 pub struct Config<F> {
