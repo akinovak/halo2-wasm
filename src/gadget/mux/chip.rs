@@ -1,20 +1,21 @@
-use std::marker::PhantomData;
+use std::{array, marker::PhantomData};
 
 use halo2::{
     arithmetic::FieldExt,
-    circuit::{Chip, Layouter, Region},
+    circuit::{Chip, Layouter},
     plonk::{Advice, Column, ConstraintSystem, Error, Selector, Expression},
     poly::Rotation,
 };
 
 use super::MuxInstructions;
-use super::super::super::CellValue;
+use crate::utils::{UtilitiesInstructions, CellValue, copy};
 
 #[derive(Clone, Debug)]
 pub struct MuxConfig {
-    pub advice: [Column<Advice>; 3],
-    pub s_mux: Selector,
-    pub s_bool: Selector
+    left: Column<Advice>,
+    right: Column<Advice>,
+    s: Column<Advice>,
+    q_mux: Selector
 }
 
 #[derive(Debug)]
@@ -33,32 +34,33 @@ impl<F: FieldExt> MuxChip<F> {
             meta.enable_equality((*column).into());
         }
 
-        let s_bool = meta.selector();
+        let left = advice[0];
+        let right = advice[1];
+        let s = advice[2];
 
-        meta.create_gate("bool", |meta| {
-            let selector = meta.query_advice(advice[2], Rotation::cur());
-            let s_bool = meta.query_selector(s_bool);
+        let q_mux = meta.selector();
 
-            vec![s_bool * selector.clone() * (Expression::Constant(F::one()) - selector)]
-        });
-
-        let s_mux = meta.selector();
-
-        meta.create_gate("mux", |meta| {
-            let a = meta.query_advice(advice[0], Rotation::cur());
-            let b = meta.query_advice(advice[1], Rotation::cur());
-            let selector = meta.query_advice(advice[2], Rotation::cur());
+        meta.create_gate("mux constraint", |meta| {
+            let q_mux = meta.query_selector(q_mux);
+            let left = meta.query_advice(advice[0], Rotation::cur());
+            let right = meta.query_advice(advice[1], Rotation::cur());
+            let s = meta.query_advice(advice[2], Rotation::cur());
             let out = meta.query_advice(advice[0], Rotation::next());
-            let s_mux = meta.query_selector(s_mux);
 
-            vec![s_mux * (out - ((b - a.clone()) * selector + a))]
+            let one = Expression::Constant(F::one());
+
+            let bool_check = s.clone() * (one.clone() - s.clone());
+            let mux_check = out - right * s.clone() - left * (one - s);
+
+            array::IntoIter::new([bool_check, mux_check])
+                .map(move |poly| q_mux.clone() * poly)
         });
 
         MuxConfig {
-            advice,
-            s_mux,
-            s_bool
-
+            left,
+            right,
+            s,
+            q_mux
         }
     }
 
@@ -70,6 +72,11 @@ impl<F: FieldExt> MuxChip<F> {
     }
 }
 // ANCHOR_END: chip-config
+
+impl<F: FieldExt> UtilitiesInstructions<F> for MuxChip<F> {
+    type Var = CellValue<F>;
+}
+
 
 impl<F: FieldExt> Chip<F> for MuxChip<F> {
     type Config = MuxConfig;
@@ -85,69 +92,48 @@ impl<F: FieldExt> Chip<F> for MuxChip<F> {
 }
 
 impl<F: FieldExt> MuxInstructions<F> for MuxChip<F> {
-    type Cell = CellValue<F>;
-
     fn mux(
         &self,
         mut layouter: impl Layouter<F>,
-        a: Self::Cell,
-        b: Self::Cell,
-        selector: Self::Cell,
-    ) -> Result<Self::Cell, Error> {
+        a: Self::Var,
+        b: Self::Var,
+        selector: Self::Var,
+    ) -> Result<Self::Var, Error> {
         let config = self.config();
 
-        let mut out = None;
-        layouter.assign_region(
-            || "mux",
-            |mut region: Region<'_, F>| {
+        layouter.assign_region(|| "mux ", 
+            |mut region| {
                 let mut row_offset = 0;
+                config.q_mux.enable(&mut region, 0)?;
 
-                let a_cell = region.assign_advice(
-                    || "a",
-                    config.advice[0],
-                    row_offset,
-                    || a.value.ok_or(Error::SynthesisError),
-                )?;
-                let b_cell = region.assign_advice(
-                    || "b",
-                    config.advice[1],
-                    row_offset,
-                    || b.value.ok_or(Error::SynthesisError),
-                )?;
-                let selector_cell = region.assign_advice(
-                    || "selector",
-                    config.advice[2],
-                    row_offset,
-                    || selector.value.ok_or(Error::SynthesisError),
-                )?;
-                region.constrain_equal(a.cell, a_cell)?;
-                region.constrain_equal(b.cell, b_cell)?;
-                region.constrain_equal(selector.cell, selector_cell)?;
-
-                config.s_bool.enable(&mut region, row_offset)?;
-                config.s_mux.enable(&mut region, row_offset)?;
+                let left = copy(&mut region, || "copy left", config.left, row_offset, &a)?;
+                let right = copy(&mut region, || "copy right", config.right, row_offset, &b)?;
+                let s = copy(&mut region, || "copy s", config.s, row_offset, &selector)?;
 
                 row_offset += 1;
 
-                let mux_value: F = if selector.value == Some(F::zero()) {
-                    a.value.ok_or(Error::SynthesisError)?
-                } else {
-                    b.value.ok_or(Error::SynthesisError)?
+                let out = {
+                    let swapped = 
+                        left.value
+                        .zip(right.value)
+                        .zip(s.value)
+                        .map(|((left, right), s)| if s == F::one() { right } else { left });
+
+                    let cell = region.assign_advice(
+                        || "witness swapped value",
+                        config.left,
+                        row_offset,
+                        || swapped.ok_or(Error::SynthesisError)
+                    )?;
+
+                    CellValue {
+                        cell, 
+                        value: swapped
+                    }
                 };
 
-                let mux_cell = region.assign_advice(
-                    || "mux result",
-                    config.advice[0],
-                    row_offset,
-                    || Ok(mux_value),
-                )?;
-
-                out = Some(CellValue { cell: mux_cell, value: Some(mux_value) });
-                Ok(())
-            },
-        )?;
-
-        Ok(out.unwrap())
+                Ok(out)
+            }
+        )
     }
 }
-// ANCHOR END: add-instructions-impl

@@ -1,24 +1,21 @@
 use halo2::{
     arithmetic::FieldExt,
-    circuit::{Chip, Layouter},
+    circuit::{Layouter},
     plonk::{Error}
 };
 
 mod chip;
 pub use chip::{MuxConfig, MuxChip};
+use crate::utils::UtilitiesInstructions;
 
 
-pub trait MuxInstructions<F: FieldExt> 
-: Chip<F> 
+pub trait MuxInstructions<F: FieldExt>: UtilitiesInstructions<F>
 {
-    type Cell;
-
     fn mux(
         &self,
         layouter: impl Layouter<F>,
-        a: Self::Cell,
-        b: Self::Cell,
-        selector: Self::Cell,
-    ) -> Result<Self::Cell, Error>;
-
+        a: Self::Var,
+        b: Self::Var,
+        selector: Self::Var,
+    ) -> Result<Self::Var, Error>;
 }

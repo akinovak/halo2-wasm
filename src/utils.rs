@@ -64,7 +64,6 @@ pub trait UtilitiesInstructions<F: FieldExt> {
     }
 }
 
-#[allow(dead_code)]
 pub fn copy<A, AR, F: FieldExt>(
     region: &mut Region<'_, F>,
     annotation: A,
