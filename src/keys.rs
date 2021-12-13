@@ -35,6 +35,16 @@ impl VerifyingKey {
 
         VerifyingKey { params, vk }
     }
+
+    pub fn export<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        self.vk.write(writer)
+    }
+
+    pub fn build_circuit() {
+        let params: halo2::poly::commitment::Params<vesta::Affine> = halo2::poly::commitment::Params::new(K);
+        // let circuit: MuxCircuit<pasta::Fp> = Default::default();
+        // let vk = plonk::keygen_vk(&params, &circuit).unwrap();
+    }
 }
 
 impl ProvingKey {
@@ -47,5 +57,37 @@ impl ProvingKey {
         let pk = plonk::keygen_pk(&params, vk, &circuit).unwrap();
 
         ProvingKey { params, pk }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::{VerifyingKey};
+    use halo2::{
+        plonk,
+        pasta
+    };
+    use pasta_curves::vesta;
+    use super::K;
+    use crate::circuit::{MuxCircuit};
+
+    #[test]
+    fn vk_serialization() {
+        let mut output: Vec<u8> = Vec::new();
+        let vk = VerifyingKey::build();
+
+        match vk.export(&mut output) {
+            Ok(_) => (),
+            Err(e) => return println!("{}", e.to_string()),
+        };
+
+        let mut sliced: &[u8] = &output[..];
+        let params = halo2::poly::commitment::Params::new(K);
+
+        let _retrieved = plonk::VerifyingKey::<vesta::Affine>::read::<_, MuxCircuit<pasta::Fp>>(
+            &mut sliced,
+            &params
+        );
     }
 }

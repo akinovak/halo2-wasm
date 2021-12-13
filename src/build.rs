@@ -5,10 +5,18 @@ use halo2::{
 
 use crate::{
     circuit::MuxCircuit,
-    keys::{ProvingKey, VerifyingKey}
+    keys::{ProvingKey, VerifyingKey, K}
 };
 
+use pasta_curves::{
+    vesta
+};
+
+use crate::proof::{Proof, Instance};
+use std::iter;
+
 use wasm_bindgen::prelude::*;
+pub use wasm_bindgen_rayon::init_thread_pool;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -16,9 +24,13 @@ use wasm_bindgen::prelude::*;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-// pub fn set_panic_hook() {
-//     console_error_panic_hook::set_once();
-// }
+
+// MAKE SURE TO BUILD WITH: wasm-pack build --target web
+
+pub fn set_panic_hook() {
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
+}
 
 #[wasm_bindgen]
 extern {
@@ -35,44 +47,7 @@ pub struct MuxWasm {
 #[wasm_bindgen]
 impl MuxWasm {
     #[wasm_bindgen]
-    pub fn new() -> MuxWasm {
-        MuxWasm {
-            circuit: MuxCircuit::<Fp> {
-                a: Some(Fp::one()), 
-                b: Some(Fp::one()), 
-                selector: Some(Fp::zero())
-            },
-        }
+    pub fn export_verifier_key() {
+        let params: halo2::poly::commitment::Params<vesta::Affine> = halo2::poly::commitment::Params::new(1);
     }
-
-    #[wasm_bindgen]
-    pub fn proof() {
-        let k = 4;
-    
-        let a = Fp::from(3);
-        let b = Fp::from(2);
-        let selector = Fp::from(0);
-    
-        let circuit = MuxCircuit {
-            a: Some(a),
-            b: Some(b),
-            selector: Some(selector)
-        };
-
-        let mut public_inputs = vec![];
-
-        if selector == Fp::one() {
-            public_inputs.push(b)
-        } else {
-            public_inputs.push(a)
-        }
-
-        let prover = MockProver::run(k, &circuit, vec![public_inputs.clone()]).unwrap();
-        let verification_result = prover.verify();
-        if verification_result == Ok(()) {
-            alert("Woorks file");
-        }
-    }
-
-
 }

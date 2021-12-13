@@ -28,7 +28,7 @@ pub struct Instance {
 }
 
 impl Instance {
-    fn to_halo2_instance(&self) -> [[vesta::Scalar; 1]; 1] {
+    pub fn to_halo2_instance(&self) -> [[vesta::Scalar; 1]; 1] {
         let mut instance = [vesta::Scalar::zero(); 1];
 
         instance[MUX_OUTPUT] = self.result;
@@ -84,8 +84,6 @@ impl Proof {
 #[cfg(test)]
 mod tests {
     use ff::Field;
-    use rand::rngs::OsRng;
-    use rand::Rng;
     use std::iter;
     use halo2::pasta::Fp;
     use halo2::dev::MockProver;
@@ -96,82 +94,79 @@ mod tests {
     use super::{Instance, Proof};
 
 
-    #[test]
-    fn round_trip() {
-        let mut rng = OsRng;
+    // #[test]
+    // fn round_trip() {
+    //     let (circuits, instances): (Vec<_>, Vec<_>) = iter::once(())
+    //         .map(|()| {
+    //             let a = Fp::random(&mut rng);
+    //             let b = Fp::random(&mut rng);
+    //             let selector = Fp::one;
 
-        let (circuits, instances): (Vec<_>, Vec<_>) = iter::once(())
-            .map(|()| {
-                let a = Fp::random(&mut rng);
-                let b = Fp::random(&mut rng);
-                let num: u64 = rand::thread_rng().gen_range(0..1);
-                let selector = Fp::from(num);
+    //             let result;
+    //             if selector == Fp::one() {
+    //                 result = b;
+    //             } else {
+    //                 result = a;
+    //             }
 
-                let result;
-                if selector == Fp::one() {
-                    result = b;
-                } else {
-                    result = a;
-                }
+    //             (
+    //                 MuxCircuit::<Fp> {
+    //                     a: Some(a), 
+    //                     b: Some(b), 
+    //                     selector: Some(selector)
+    //                 },
+    //                 Instance {
+    //                     result
+    //                 },
+    //             )
+    //         })
+    //         .unzip();
 
-                (
-                    MuxCircuit::<Fp> {
-                        a: Some(a), 
-                        b: Some(b), 
-                        selector: Some(selector)
-                    },
-                    Instance {
-                        result
-                    },
-                )
-            })
-            .unzip();
+    //     let vk = VerifyingKey::build();
 
-        let vk = VerifyingKey::build();
+    //     // Test that the pinned verification key (representing the circuit)
+    //     // is as expected.
+    //     // {
+    //     //     // panic!("{:#?}", vk.vk.pinned());
+    //     //     assert_eq!(
+    //     //         format!("{:#?}\n", vk.vk.pinned()),
+    //     //         include_str!("circuit_description").replace("\r\n", "\n")
+    //     //     );
+    //     // }
 
-        // Test that the pinned verification key (representing the circuit)
-        // is as expected.
-        // {
-        //     // panic!("{:#?}", vk.vk.pinned());
-        //     assert_eq!(
-        //         format!("{:#?}\n", vk.vk.pinned()),
-        //         include_str!("circuit_description").replace("\r\n", "\n")
-        //     );
-        // }
+    //     // Test that the proof size is as expected.
+    //     // let expected_proof_size = {
+    //     //     let circuit_cost = halo2::dev::CircuitCost::<pasta_curves::vesta::Point, _>::measure(
+    //     //         K as usize,
+    //     //         &circuits[0],
+    //     //     );
+    //     //     assert_eq!(usize::from(circuit_cost.proof_size(1)), 4992);
+    //     //     assert_eq!(usize::from(circuit_cost.proof_size(2)), 7264);
+    //     //     usize::from(circuit_cost.proof_size(instances.len()))
+    //     // };
 
-        // Test that the proof size is as expected.
-        // let expected_proof_size = {
-        //     let circuit_cost = halo2::dev::CircuitCost::<pasta_curves::vesta::Point, _>::measure(
-        //         K as usize,
-        //         &circuits[0],
-        //     );
-        //     assert_eq!(usize::from(circuit_cost.proof_size(1)), 4992);
-        //     assert_eq!(usize::from(circuit_cost.proof_size(2)), 7264);
-        //     usize::from(circuit_cost.proof_size(instances.len()))
-        // };
+    //     for (circuit, instance) in circuits.iter().zip(instances.iter()) {
+    //         assert_eq!(
+    //             MockProver::run(
+    //                 K,
+    //                 circuit,
+    //                 instance
+    //                     .to_halo2_instance()
+    //                     .iter()
+    //                     .map(|p| p.to_vec())
+    //                     .collect()
+    //             )
+    //             .unwrap()
+    //             .verify(),
+    //             Ok(())
+    //         );
+    //     }
 
-        for (circuit, instance) in circuits.iter().zip(instances.iter()) {
-            assert_eq!(
-                MockProver::run(
-                    K,
-                    circuit,
-                    instance
-                        .to_halo2_instance()
-                        .iter()
-                        .map(|p| p.to_vec())
-                        .collect()
-                )
-                .unwrap()
-                .verify(),
-                Ok(())
-            );
-        }
-
-        let pk = ProvingKey::build();
-        let proof = Proof::create(&pk, &circuits, &instances).unwrap();
-        assert!(proof.verify(&vk, &instances).is_ok());
-        // assert_eq!(proof.0.len(), expected_proof_size);
-    }
+    //     let pk = ProvingKey::build();
+    //     let proof = Proof::create(&pk, &circuits, &instances).unwrap();
+    //     assert!(proof.verify(&vk, &instances).is_ok());
+    //     // assert_eq!(proof.0.len(), expected_proof_size);
+    // }
 
 
 }
