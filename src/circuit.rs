@@ -101,38 +101,38 @@ impl<F: FieldExt> Circuit<F> for MuxCircuit<F> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use halo2::{
-        dev::MockProver,
-        pasta::Fp
-    };
+// #[cfg(test)]
+// mod tests {
+//     use halo2::{
+//         dev::MockProver,
+//         pasta::Fp
+//     };
 
-    use crate::circuit::MuxCircuit;
+//     use crate::circuit::MuxCircuit;
 
-    #[test]
-    fn full_test() {
-        let k = 4;
+//     #[test]
+//     fn full_test() {
+//         let k = 4;
     
-        let a = Fp::from(3);
-        let b = Fp::from(2);
-        let selector = Fp::from(0);
+//         let a = Fp::from(3);
+//         let b = Fp::from(2);
+//         let selector = Fp::from(0);
     
-        let circuit = MuxCircuit {
-            a: Some(a),
-            b: Some(b),
-            selector: Some(selector)
-        };
+//         let circuit = MuxCircuit {
+//             a: Some(a),
+//             b: Some(b),
+//             selector: Some(selector)
+//         };
 
-        let mut public_inputs = vec![];
+//         let mut public_inputs = vec![];
 
-        if selector == Fp::one() {
-            public_inputs.push(b)
-        } else {
-            public_inputs.push(a)
-        }
+//         if selector == Fp::one() {
+//             public_inputs.push(b)
+//         } else {
+//             public_inputs.push(a)
+//         }
 
-        let prover = MockProver::run(k, &circuit, vec![public_inputs.clone()]).unwrap();
-        assert_eq!(prover.verify(), Ok(()));
-    }
-}
+//         let prover = MockProver::run(k, &circuit, vec![public_inputs.clone()]).unwrap();
+//         assert_eq!(prover.verify(), Ok(()));
+//     }
+// }

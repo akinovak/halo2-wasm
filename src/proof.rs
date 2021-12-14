@@ -38,11 +38,11 @@ impl Instance {
 
 impl Proof {
     /// Creates a proof for the given circuit and instances.
-    pub fn create(
+    pub fn create_raw(
         pk: &ProvingKey,
         circuits: &[MuxCircuit<pasta::Fp>],
         instances: &[Instance],
-    ) -> Result<Self, Error> {
+    ) -> Result<Vec<u8>, Error> {
         let instances: Vec<_> = instances.iter().map(|i| i.to_halo2_instance()).collect();
         let instances: Vec<Vec<_>> = instances
             .iter()
@@ -52,7 +52,15 @@ impl Proof {
 
         let mut transcript = Blake2bWrite::<_, vesta::Affine, _>::init(vec![]);
         plonk::create_proof(&pk.params, &pk.pk, &circuits, &public_inputs, &mut transcript)?;
-        Ok(Proof(transcript.finalize()))
+        Ok(transcript.finalize())
+    }
+    pub fn create(
+        pk: &ProvingKey,
+        circuits: &[MuxCircuit<pasta::Fp>],
+        instances: &[Instance],
+    ) -> Result<Self, Error> {
+        let raw = Proof::create_raw(pk, circuits, instances)?;
+        Ok(Proof(raw))
     }
 
     /// Verifies this proof with the given instances.
@@ -83,6 +91,8 @@ impl Proof {
 
 #[cfg(test)]
 mod tests {
+    use wasm_bindgen_test::*;
+
     use ff::Field;
     use std::iter;
     use halo2::pasta::Fp;
@@ -94,7 +104,7 @@ mod tests {
 
     use super::{Instance, Proof};
 
-    #[test]
+    #[wasm_bindgen_test]
     fn round_trip() {
         let mut rng = rand::thread_rng();
 

@@ -21,4 +21,4 @@ js-sys = "0.3.55"
 
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.28"
+wasm-bindgen-test = "0.3.0"

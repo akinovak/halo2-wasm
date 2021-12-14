@@ -1,6 +1,5 @@
 use halo2::{
     pasta::Fp,
-    dev::MockProver
 };
 
 use crate::{
@@ -14,6 +13,9 @@ use pasta_curves::{
 
 use crate::proof::{Proof, Instance};
 use std::iter;
+
+use ff::Field;
+use rand::Rng;
 
 use wasm_bindgen::prelude::*;
 pub use wasm_bindgen_rayon::init_thread_pool;
@@ -55,5 +57,42 @@ impl MuxWasm {
             Err(e) => return Err(e.to_string().into()),
         };
         Ok(output)
+    }
+
+    pub fn export_proof() -> Result<Vec<u8>, JsValue> {
+        set_panic_hook();
+
+        let mut rng = rand::thread_rng();
+
+        let (circuits, instances): (Vec<_>, Vec<_>) = iter::once(())
+            .map(|()| {
+                let a = Fp::random(&mut rng);
+                let b = Fp::random(&mut rng);
+                let num: u64 = rand::thread_rng().gen_range(0..1);
+                let selector = Fp::from(num);
+
+                let result;
+                if selector == Fp::one() {
+                    result = 1 as u64;
+                } else {
+                    result = 0 as u64;
+                }
+
+                (
+                    MuxCircuit::<Fp> {
+                        a: Some(a), 
+                        b: Some(b), 
+                        selector: Some(selector)
+                    },
+                    Instance {
+                        result
+                    },
+                )
+            })
+            .unzip();
+
+        let pk = ProvingKey::build();
+        let proof = Proof::create_raw(&pk, &circuits, &instances).unwrap();
+        Ok(proof)
     }
 }
