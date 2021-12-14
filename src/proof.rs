@@ -24,14 +24,14 @@ impl AsRef<[u8]> for Proof {
 }
 
 pub struct Instance {
-    pub result: vesta::Scalar, 
+    pub result: u64, 
 }
 
 impl Instance {
     pub fn to_halo2_instance(&self) -> [[vesta::Scalar; 1]; 1] {
         let mut instance = [vesta::Scalar::zero(); 1];
 
-        instance[MUX_OUTPUT] = self.result;
+        instance[MUX_OUTPUT] = vesta::Scalar::from(self.result);
         [instance]
     }
 }
@@ -107,9 +107,9 @@ mod tests {
 
                 let result;
                 if selector == Fp::one() {
-                    result = b;
+                    result = 1 as u64;
                 } else {
-                    result = a;
+                    result = 0 as u64;
                 }
 
                 (
