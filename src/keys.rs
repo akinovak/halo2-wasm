@@ -39,12 +39,6 @@ impl VerifyingKey {
     pub fn export<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         self.vk.write(writer)
     }
-
-    pub fn build_circuit() {
-        let params: halo2::poly::commitment::Params<vesta::Affine> = halo2::poly::commitment::Params::new(K);
-        // let circuit: MuxCircuit<pasta::Fp> = Default::default();
-        // let vk = plonk::keygen_vk(&params, &circuit).unwrap();
-    }
 }
 
 impl ProvingKey {

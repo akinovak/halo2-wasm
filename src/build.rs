@@ -25,7 +25,6 @@ pub use wasm_bindgen_rayon::init_thread_pool;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 
-// MAKE SURE TO BUILD WITH: wasm-pack build --target web
 
 pub fn set_panic_hook() {
     #[cfg(feature = "console_error_panic_hook")]
@@ -47,7 +46,14 @@ pub struct MuxWasm {
 #[wasm_bindgen]
 impl MuxWasm {
     #[wasm_bindgen]
-    pub fn export_verifier_key() {
-        let params: halo2::poly::commitment::Params<vesta::Affine> = halo2::poly::commitment::Params::new(1);
+    pub fn export_verifier_key() -> Result<Vec<u8>, JsValue> {
+        set_panic_hook();
+        let mut output: Vec<u8> = Vec::new();
+        let vk = VerifyingKey::build();
+        match vk.export(&mut output) {
+            Ok(_) => (),
+            Err(e) => return Err(e.to_string().into()),
+        };
+        Ok(output)
     }
 }
