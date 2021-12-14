@@ -1,21 +1,14 @@
 use halo2::{
-    pasta::Fp,
+    pasta::{Fp},
 };
 
 use crate::{
     circuit::MuxCircuit,
-    keys::{ProvingKey, VerifyingKey, K}
-};
-
-use pasta_curves::{
-    vesta
+    keys::{ProvingKey, VerifyingKey}
 };
 
 use crate::proof::{Proof, Instance};
 use std::iter;
-
-use ff::Field;
-use rand::Rng;
 
 use wasm_bindgen::prelude::*;
 pub use wasm_bindgen_rayon::init_thread_pool;
@@ -25,8 +18,6 @@ pub use wasm_bindgen_rayon::init_thread_pool;
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
-
 
 pub fn set_panic_hook() {
     #[cfg(feature = "console_error_panic_hook")]
@@ -41,12 +32,12 @@ extern {
 
 #[wasm_bindgen]
 pub struct MuxWasm {
-    circuit: MuxCircuit<Fp>,
 }
 
+/*TODO there is compatibility issue with export and retrieve_vk 
+their values are same, just exported has len(160) and retireved(128)
+I'll try to solve with clean env & rln
 
-#[wasm_bindgen]
-impl MuxWasm {
     #[wasm_bindgen]
     pub fn export_verifier_key() -> Result<Vec<u8>, JsValue> {
         set_panic_hook();
@@ -59,30 +50,51 @@ impl MuxWasm {
         Ok(output)
     }
 
-    pub fn export_proof() -> Result<Vec<u8>, JsValue> {
+    #[wasm_bindgen]
+    pub fn retrieve_vk(mut raw_vk: &[u8]) -> Result<Vec<u8>, JsValue> {
         set_panic_hook();
+        let params = halo2::poly::commitment::Params::new(K);
+        let plonk_vk = plonk::VerifyingKey::<vesta::Affine>::read::<_, MuxCircuit<pasta::Fp>>(
+            &mut raw_vk,
+            &params
+        ).unwrap();
 
-        let mut rng = rand::thread_rng();
+        let vk = VerifyingKey {
+            params, 
+            vk: plonk_vk
+        };
+
+        let mut output: Vec<u8> = Vec::new();
+        match vk.export(&mut output) {
+            Ok(_) => (),
+            Err(e) => return Err(e.to_string().into()),
+        };
+        Ok(output)
+    }
+*/
+
+#[wasm_bindgen]
+impl MuxWasm {
+    #[wasm_bindgen]
+    pub fn build_proof(left: u64, right: u64, selector: bool) -> Result<Vec<u8>, JsValue> {
+        set_panic_hook();
 
         let (circuits, instances): (Vec<_>, Vec<_>) = iter::once(())
             .map(|()| {
-                let a = Fp::random(&mut rng);
-                let b = Fp::random(&mut rng);
-                let num: u64 = rand::thread_rng().gen_range(0..1);
-                let selector = Fp::from(num);
+                let a = Fp::from(left);
+                let b = Fp::from(right);
+                let s = Fp::from(selector);
 
-                let result;
-                if selector == Fp::one() {
-                    result = 1 as u64;
-                } else {
-                    result = 0 as u64;
-                }
+                let result = match selector {
+                    true => right,
+                    false => left
+                };
 
                 (
                     MuxCircuit::<Fp> {
                         a: Some(a), 
                         b: Some(b), 
-                        selector: Some(selector)
+                        selector: Some(s)
                     },
                     Instance {
                         result
@@ -95,4 +107,27 @@ impl MuxWasm {
         let proof = Proof::create_raw(&pk, &circuits, &instances).unwrap();
         Ok(proof)
     }
+
+    #[wasm_bindgen]
+    pub fn verify_proof(raw_proof: &[u8], raw_public_inputs: &[u8]) -> 
+    Result<bool, JsValue> {
+        set_panic_hook();
+        let public_inputs = raw_public_inputs.to_vec();
+        let instances: Vec<_> = public_inputs.iter()
+        .map(|pi| {
+            Instance {
+                result: *pi as u64
+            }
+        }).collect();
+
+        let vk = VerifyingKey::build();
+        let proof = Proof::new(raw_proof.to_vec());
+        match proof.verify(&vk, &instances) {
+            Ok(_) => (),
+            Err(_) => return Err("Proof is not valid!".into()),
+        }
+
+        Ok(true)
+    }
+    
 }

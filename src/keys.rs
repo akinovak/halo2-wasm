@@ -54,34 +54,34 @@ impl ProvingKey {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
+#[cfg(test)]
+mod tests {
 
-//     use super::{VerifyingKey};
-//     use halo2::{
-//         plonk,
-//         pasta
-//     };
-//     use pasta_curves::vesta;
-//     use super::K;
-//     use crate::circuit::{MuxCircuit};
+    use super::{VerifyingKey};
+    use halo2::{
+        plonk,
+        pasta
+    };
+    use pasta_curves::vesta;
+    use super::K;
+    use crate::circuit::{MuxCircuit};
 
-//     #[test]
-//     fn vk_serialization() {
-//         let mut output: Vec<u8> = Vec::new();
-//         let vk = VerifyingKey::build();
+    #[test]
+    fn vk_serialization() {
+        let mut output: Vec<u8> = Vec::new();
+        let vk = VerifyingKey::build();
 
-//         match vk.export(&mut output) {
-//             Ok(_) => (),
-//             Err(e) => return println!("{}", e.to_string()),
-//         };
+        match vk.export(&mut output) {
+            Ok(_) => (),
+            Err(e) => return println!("{}", e.to_string()),
+        };
 
-//         let mut sliced: &[u8] = &output[..];
-//         let params = halo2::poly::commitment::Params::new(K);
+        let mut sliced: &[u8] = &output[..];
+        let params = halo2::poly::commitment::Params::new(K);
 
-//         let _retrieved = plonk::VerifyingKey::<vesta::Affine>::read::<_, MuxCircuit<pasta::Fp>>(
-//             &mut sliced,
-//             &params
-//         );
-//     }
-// }
+        let _retrieved = plonk::VerifyingKey::<vesta::Affine>::read::<_, MuxCircuit<pasta::Fp>>(
+            &mut sliced,
+            &params
+        );
+    }
+}

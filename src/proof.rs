@@ -14,15 +14,6 @@ use crate::{
     circuit::{MuxCircuit, MUX_OUTPUT},
 };
 
-#[derive(Debug, Clone)]
-pub struct Proof(Vec<u8>);
-
-impl AsRef<[u8]> for Proof {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
 pub struct Instance {
     pub result: u64, 
 }
@@ -33,6 +24,16 @@ impl Instance {
 
         instance[MUX_OUTPUT] = vesta::Scalar::from(self.result);
         [instance]
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct Proof(Vec<u8>);
+
+impl AsRef<[u8]> for Proof {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
     }
 }
 
